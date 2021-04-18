@@ -3,6 +3,8 @@ const AWS = require('aws-sdk')
 const jwt = require('jsonwebtoken')
 const expressJwt = require('express-jwt')
 const { registerEmailParams, forgotPasswordEmailParams } = require('../helpers/email')
+const fs = require('fs')
+const {v4: uuidv4} = require('uuid');
 
 
 
@@ -97,18 +99,52 @@ exports.registerActivateDealer = (req, res) => {
                 })
             }
 
-            // register new dealer
-            const newDealer = new Dealer({ firstName, lastName, email, password, address, officeAddress, serviceDescription, cellPhone, cnicNumber, city, country })
-            newDealer.save((err, result) => {
-                if (err) {
-                    return res.status(401).json({
-                        error: 'Error saving dealer in database. Try later'
-                    })
-                }
-                return res.json({
-                    message: 'Dealer Registration success. Please login.'
-                })
+            // HANDLING THE IMAGE USING S3
+                const s3 = new AWS.S3({
+                accessKeyId: "AKIA5IYE5CCHY6LFFOFJ",
+                secretAccessKey: "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",
+                Bucket:"cnic-bucket",
             })
+
+            let myFile = req.file.originalname.split(".")
+            const fileType = myFile[myFile.length - 1]
+            
+            var params ={
+            ContentEncoding: 'base64',
+            ContentType: req.file.mimetype,
+            Bucket:"cnic-bucket",
+            Key: `${uuidv4()}.${fileType}`,
+            Body: fs.createReadStream(req.file.path)
+        }
+
+        s3.upload(params, (error, data)=>{
+            if(error){
+                res.status(500).send(error)
+            }
+            if(data){
+                fs.unlinkSync(req.file.path);
+                const locationUrl = data.Location;
+                const newDealer = new Dealer({ firstName, lastName, email, password, address, officeAddress, serviceDescription, cellPhone, cnicNumber, city, country })
+                newDealer = new Dealer({...req.body,image:locationUrl});
+                newDealer.save().then(console.log(newDealer))
+                var result={
+                    newDealer:newDealer          
+                }
+                res.send(result);
+                console.log(data);
+            }
+        })
+            // register new dealer
+            // newDealer.save((err, result) => {
+            //     if (err) {
+            //         return res.status(401).json({
+            //             error: 'Error saving dealer in database. Try later'
+            //         })
+            //     }
+            //     return res.json({
+            //         message: 'Dealer Registration success. Please login.'
+            //     })
+            // })
         })
     })
 }

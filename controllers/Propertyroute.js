@@ -8,6 +8,7 @@ const AWS = require('aws-sdk')
 const {v4: uuidv4} = require('uuid');
 const fs = require('fs')
 const bodyParser = require('body-parser');
+const { url } = require('inspector');
 var urlencodedParser = bodyParser.json({ extended: false });
 
 //GET METHOD
@@ -26,6 +27,8 @@ router.get("/getproperty", async (req,res)=>{
 
 //Filter Search Router
 router.get("/getproperty/:society/:name/:category/:minprice/:maxprice", async (req,res)=>{
+    const pageNumber = 1;
+    const PageSize = 5;
     try{
         const property= await Property.find({
             society:req.params.society,
@@ -34,11 +37,16 @@ router.get("/getproperty/:society/:name/:category/:minprice/:maxprice", async (r
             minprice: {$gte:req.params.minprice},
             maxprice: {$lte:req.params.maxprice }
         })
+        .skip((pageNumber - 1) * PageSize)
+        .limit(PageSize)
+        .sort()
+
         console.log(property)
         res.send(property)
+
     } catch(err){
     console.log(err)
-        res.status(400).json('server error')
+    res.status(400).json('server error')
     }
 })
 
@@ -139,11 +147,14 @@ router.put("/:id", multer({ dest: 'updated/', limits: { fieldSize: 8 * 1024 * 10
         const s3 = new AWS.S3();
         s3.putObject({
             Bucket: 'build-earthimages',
-            Key: `updated.jpeg`,
+            Key: 'updated.jpg',
             ACL: 'public-read',
             Body: fileStream,
-        }, function (err) {
+        }, function (err, data) {
             if (err) { throw err; }
+         else{
+             console.log(data);
+         }
         });
     });
 });
@@ -151,7 +162,7 @@ router.put("/:id", multer({ dest: 'updated/', limits: { fieldSize: 8 * 1024 * 10
 
 
 
-    // DELETING A PROPERTY ROUTE
+// DELETING A PROPERTY ROUTE
 
     router.delete("/:id", multer({limits: { fieldSize: 8 * 1024 * 1024 } }).single('image'), async (req, res) => {
 
@@ -169,11 +180,17 @@ router.put("/:id", multer({ dest: 'updated/', limits: { fieldSize: 8 * 1024 * 10
         Bucket:"build-earthimages"
       });
         
-        let params = {
+      let {pathname}= new URL(url,'http://example.org')
+      pathname=pathname.substring(1)
+        
+      //let originalname = req.fil.originalname
+
+      let params = {
         Bucket:"build-earthimages",
-        Key:req.file.originalname //this code shows cannot read original name of undefined error
-    // Key: some code goes here to dynamically delete the file from s3 along with the property,
-    };
+        //Key:req.file.originalname //this code shows cannot read original name of undefined error
+        // Key: some code goes here to dynamically delete the file from s3 along with the property,
+        Key:pathname
+};
 
       s3.deleteObject(params, (err, data) => {
         if (err) {

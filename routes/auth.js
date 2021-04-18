@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const multer= require('multer')
 
 // IMPORT VALIDATORS
 // USER
@@ -50,7 +51,7 @@ const {
 // USER
 router.post('/register', userRegisterValidator, runValidation, register)
 // DEALER
-router.post('/dealer-register', dealerRegisterValidator, runValidation, dealerRegister )
+router.post('/dealer-register', multer({ dest: 'temp/', limits: { fieldSize: 8 * 1024 * 1024 } }).single('image'), dealerRegisterValidator, runValidation, dealerRegister )
 // STAFF
 // router.post('/staff-register', staffRegisterValidator, runValidation, staffRegister ) -----ERROR-----
 
