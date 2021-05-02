@@ -162,49 +162,31 @@ router.put("/:id", multer({ dest: 'updated/', limits: { fieldSize: 8 * 1024 * 10
 
 
 
-// DELETING A PROPERTY ROUTE
+// // DELETING A PROPERTY ROUTE
 
-    router.delete("/:id", multer({limits: { fieldSize: 8 * 1024 * 1024 } }).single('image'), async (req, res) => {
-
-    const property = await Property.findByIdAndRemove(req.params.id,(err,result)=>{
+    router.delete("/:id", multer({dest: 'deleted/', limits: { fieldSize: 8 * 1024 * 1024 } }).single('image'), async (req, res) => {
+        
+    const property = await Property.findByIdAndRemove(req.params.id,(err,result,Key)=>{
         if (err){
-            return next(err);
+            return (err);
         }
-
-    //Now Delete the file from AWS-S3
-    // https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#deleteObject-property
-   
-    const s3 = new AWS.S3({
-        accessKeyId: "AKIA5IYE5CCHY6LFFOFJ",
-        secretAccessKey: "AtkNYf1xnd6L8FdCiRFn9AwVQQ+f3KKPTp7CQWCI",
-        Bucket:"build-earthimages"
-      });
-        
-      let {pathname}= new URL(url,'http://example.org')
-      pathname=pathname.substring(1)
-        
-      //let originalname = req.fil.originalname
-
-      let params = {
-        Bucket:"build-earthimages",
-        //Key:req.file.originalname //this code shows cannot read original name of undefined error
-        // Key: some code goes here to dynamically delete the file from s3 along with the property,
-        Key:pathname
-};
-
-      s3.deleteObject(params, (err, data) => {
-        if (err) {
-          console.log(err);
-        } else {
-          res.send({
-            status: "200",
-            responseType: "string",
-            response: "success"
+        var params ={
+            Bucket:"build-earthimages",
+            Key: req.file.originalname,
+        }
+        s3.deleteObject(params, (err, data) => {
+            if (err) {
+              console.log(err);
+            } else {
+              res.send({
+                status: "200",
+                responseType: "string",
+                response: "success"
+              });
+            }
           });
-        }
-      });
+        });
     });
 
-});
 
 module.exports=router;

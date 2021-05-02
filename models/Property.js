@@ -31,6 +31,11 @@ const Property =  mongoose.model("Property", new mongoose.Schema({
     image:{
       type: String
     },
+    createdAt:{
+      type: Date,
+      default:Date.now,
+      expires: {$gte:'1m', $lte:'3m'},
+    },
     
     }
 ));
