@@ -51,12 +51,18 @@ router.get("/getproperty/:society/:name/:category/:minprice/:maxprice", async (r
 })
 
 
+
+
 // HANDLING THE IMAGE USING S3
 const s3 = new AWS.S3({
     accessKeyId: "AKIA5IYE5CCHY6LFFOFJ",
     secretAccessKey: "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",
     Bucket:"build-earthimages",
+    region: 'us-east-1'
 })
+
+
+
 
 
 // POSTING A PROPERTY ROUTER
@@ -114,28 +120,14 @@ router.post("/addproperty", multer({ dest: 'temp/', limits: { fieldSize: 8 * 102
 
 
 
+
+
+
+
 // UPDATING THE PROPERTY ROUTER
 
 router.put("/:id", multer({ dest: 'updated/', limits: { fieldSize: 8 * 1024 * 1024 } }).single('image'), async (req, res) => {
    
-    const property = await Property.findByIdAndUpdate(
-      req.params.id,
-      { 
-        society:req.body.society,
-        name: req.body.name,
-        category:req.body.category,
-        minprice:req.body.minprice,
-        maxprice:req.body.maxprice
-        },
-
-      { new: true }
-    );
-    if (!property)
-      return res.status(404).send("The property with the given ID was not found.");
-        
-    res.send(property);
-
-    
     AWS.config.update({ accessKeyId: 'AKIA5IYE5CCHY6LFFOFJ', secretAccessKey: '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', region: 'us-east-2'});
 
         const fileStream = fs.createReadStream(req.file.path);
@@ -147,46 +139,60 @@ router.put("/:id", multer({ dest: 'updated/', limits: { fieldSize: 8 * 1024 * 10
         const s3 = new AWS.S3();
         s3.putObject({
             Bucket: 'build-earthimages',
-            Key: 'updated.jpg',
+            Key: `updated.jpeg`,    //need to save this updated key / link in the mongodb database
             ACL: 'public-read',
             Body: fileStream,
-        }, function (err, data) {
+        }, function (err) {
             if (err) { throw err; }
-         else{
-             console.log(data);
-         }
         });
     });
+    const property = await Property.findByIdAndUpdate(
+        req.params.id,
+        { 
+          society:req.body.society,
+          name: req.body.name,
+          category:req.body.category,
+          minprice:req.body.minprice,
+          maxprice:req.body.maxprice,
+          image:req.body.image
+          },
+  
+        { new: true }
+      );
+      if (!property)
+        return res.status(404).send("The property with the given ID was not found.");
+          
+      res.send(property);
+  
 });
+
+
 
 
 
 
 // // DELETING A PROPERTY ROUTE
 
-    router.delete("/:id", multer({dest: 'deleted/', limits: { fieldSize: 8 * 1024 * 1024 } }).single('image'), async (req, res) => {
+    router.delete("/:id", async (req, res) => {
         
-    const property = await Property.findByIdAndRemove(req.params.id,(err,result,Key)=>{
-        if (err){
-            return (err);
-        }
-        var params ={
-            Bucket:"build-earthimages",
-            Key: req.file.originalname,
-        }
-        s3.deleteObject(params, (err, data) => {
+        const {slug} = req.params;
+        Property.findOneAndRemove({slug}).exec((err, data)=>{
             if (err) {
-              console.log(err);
-            } else {
-              res.send({
-                status: "200",
-                responseType: "string",
-                response: "success"
-              });
+                console.log(err);
+                res.status(400).json({ error: 'Could not Delete Category' });
             }
-          });
+            const deleteParams = {
+                Bucket: 'build-earthimages',
+                Key: `${data.image.key}`,
+            };
+            s3.deleteObject(deleteParams,function(err, data){
+                if(err) console.log('S3 DELETE ERROR DURING', err);
+                else console.log('S3 DELETED DURING', data);
+            });
+            res.json({
+                message:'Category deleted Successfully'
+            });
         });
     });
-
 
 module.exports=router;
